@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Socket</title>
+        <style>
+            body {
+                background-color: black;
+                color: aliceblue;
+            }
+            h1 {
+                text-align: center;
+            }
+
+            .messages ul {
+                list-style: lower-alpha;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Welcome to Socket.io</h1>
+
+        <div>
+            <div>
+                <input
+                    type="text"
+                    placeholder="Enter messages..."
+                    id="message-input"
+                />
+                <button id="send-btn">Send</button>
+            </div>
+
+            <div class="messages">
+                <ul class="message-container" id="message-container">
+                    <li>Sample Message: [HARDCODED]</li>
+                </ul>
+            </div>
+        </div>
+
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            const socket = io();
+
+            const messageContainer = document.getElementById("message-container")
+
+            socket.on("server-broadcast-msg", (msg) => {
+                const li = document.createElement("li")
+                li.innerText = msg
+                messageContainer.appendChild(li)
+            })
+
+            const msgInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-btn');
+
+            sendButton.addEventListener('click', () => {
+                const msg = msgInput.value;
+                console.log(msg)
+                socket.emit('message', msg);
+            });
+        </script>
+    </body>
+</html>
