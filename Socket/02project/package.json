@@ -1,0 +1,18 @@
+{
+  "name": "checkboxes",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Shivshankar",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "prettier": "^3.7.4"
+  }
+}
