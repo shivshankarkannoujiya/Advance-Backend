@@ -1,0 +1,14 @@
+# Folders
+node_modules
+build
+dist
+coverage
+logs
+.tmp
+
+# Environment files
+.env
+.env.*
+
+# TypeScript artifacts
+*.tsbuildinfo
