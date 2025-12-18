@@ -10,34 +10,52 @@ interface User {
 let allSockets: User[] = [];
 
 wss.on(`connection`, (socket) => {
-    console.log(`SOCKET CONNECTED ....`);
-
+    
     socket.on('message', (message) => {
-        const strMessage = message.toString();
-        const parsedMessage = JSON.parse(strMessage);
+        let parsedMessage;
+
+        try {
+            parsedMessage = JSON.parse(message.toString());
+        } catch {
+            console.error('Invalid JSON');
+            return;
+        }
 
         if (parsedMessage.type === 'join') {
-            allSockets.push({
-                socket,
-                room: parsedMessage.payload.roomId,
-            });
+            const roomId = parsedMessage.payload?.roomId;
+            if (!roomId) return;
+
+            console.log(`User joined room: ${roomId}`);
+
+            const existingUser = allSockets.find((s) => s.socket === socket);
+
+            if (existingUser) {
+                existingUser.room = roomId;
+            } else {
+                allSockets.push({ socket, room: roomId });
+            }
         }
 
         if (parsedMessage.type === 'chat') {
+            const messageText = parsedMessage.payload?.message;
+            if (!messageText) return;
+
             const currentUserRoom = allSockets.find(
-                (s) => (s.socket = socket)
+                (s) => s.socket === socket
             )?.room;
+
+            if (!currentUserRoom) return;
 
             allSockets.forEach((user) => {
                 if (user.room === currentUserRoom) {
-                    user.socket.send(parsedMessage.payload.message);
+                    user.socket.send(messageText);
                 }
             });
         }
     });
 
-    socket.on('disconnect', () => {
+    socket.on('close', () => {
         allSockets = allSockets.filter((s) => s.socket !== socket);
+        console.log('User disconnected');
     });
-    
 });
