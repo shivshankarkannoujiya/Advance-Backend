@@ -2,56 +2,42 @@ import { WebSocketServer, WebSocket } from 'ws';
 
 const wss = new WebSocketServer({ port: 8000 });
 
-// Key: roomId, Value: Set of WebSockets
-const rooms = new Map<string, Set<WebSocket>>();
+interface User {
+    socket: WebSocket;
+    room: string;
+}
 
-wss.on('connection', (socket) => {
-    let currentRoom: string | null = null;
+let allSockets: User[] = [];
 
-    socket.on('message', (msg) => {
-        try {
-            const parsedMsg = JSON.parse(msg.toString());
+wss.on(`connection`, (socket) => {
+    console.log(`SOCKET CONNECTED ....`);
 
-            // --- JOIN LOGIC ---
-            if (parsedMsg.type === 'join') {
-                const roomId = parsedMsg.payload.roomId;
-                currentRoom = roomId;
+    socket.on('message', (message) => {
+        const strMessage = message.toString();
+        const parsedMessage = JSON.parse(strMessage);
 
-                if (!rooms.has(roomId)) {
-                    rooms.set(roomId, new Set());
+        if (parsedMessage.type === 'join') {
+            allSockets.push({
+                socket,
+                room: parsedMessage.payload.roomId,
+            });
+        }
+
+        if (parsedMessage.type === 'chat') {
+            const currentUserRoom = allSockets.find(
+                (s) => (s.socket = socket)
+            )?.room;
+
+            allSockets.forEach((user) => {
+                if (user.room === currentUserRoom) {
+                    user.socket.send(parsedMessage.payload.message);
                 }
-                rooms.get(roomId)?.add(socket);
-                console.log(`User joined room: ${roomId}`);
-            }
-
-            // --- CHAT LOGIC ---
-            if (parsedMsg.type === 'chat' && currentRoom) {
-                const messageData = JSON.stringify({
-                    type: 'chat',
-                    payload: { message: parsedMsg.payload.message },
-                });
-
-                // Only iterate through users in THIS specific room
-                rooms.get(currentRoom)?.forEach((client) => {
-                    if (client.readyState === WebSocket.OPEN) {
-                        client.send(messageData);
-                    }
-                });
-            }
-        } catch (e) {
-            console.error('Parse error');
+            });
         }
     });
 
-    // --- CLEANUP ---
-    socket.on('close', () => {
-        if (currentRoom && rooms.has(currentRoom)) {
-            rooms.get(currentRoom)?.delete(socket);
-
-            // Delete the room if it's empty to save memory
-            if (rooms.get(currentRoom)?.size === 0) {
-                rooms.delete(currentRoom);
-            }
-        }
+    socket.on('disconnect', () => {
+        allSockets = allSockets.filter((s) => s.socket !== socket);
     });
+    
 });
