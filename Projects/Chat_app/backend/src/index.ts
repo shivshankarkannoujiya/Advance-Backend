@@ -1,61 +1,71 @@
 import { WebSocketServer, WebSocket } from 'ws';
+import { randomUUID } from 'crypto';
 
 const wss = new WebSocketServer({ port: 8000 });
 
 interface User {
+    id: string;
     socket: WebSocket;
     room: string;
 }
 
-let allSockets: User[] = [];
+let users: User[] = [];
 
-wss.on(`connection`, (socket) => {
-    
-    socket.on('message', (message) => {
-        let parsedMessage;
+wss.on('connection', (socket) => {
+    const userId = randomUUID();
+
+    socket.on('message', (data) => {
+        let message;
 
         try {
-            parsedMessage = JSON.parse(message.toString());
+            message = JSON.parse(data.toString());
         } catch {
-            console.error('Invalid JSON');
+            console.error('Invalid JSON received');
             return;
         }
 
-        if (parsedMessage.type === 'join') {
-            const roomId = parsedMessage.payload?.roomId;
+        // JOIN ROOM
+        if (message.type === 'join') {
+            const roomId = message.payload?.roomId;
             if (!roomId) return;
 
-            console.log(`User joined room: ${roomId}`);
+            users.push({ id: userId, socket, room: roomId });
 
-            const existingUser = allSockets.find((s) => s.socket === socket);
-
-            if (existingUser) {
-                existingUser.room = roomId;
-            } else {
-                allSockets.push({ socket, room: roomId });
-            }
+            console.log(`User ${userId} joined room ${roomId}`);
         }
 
-        if (parsedMessage.type === 'chat') {
-            const messageText = parsedMessage.payload?.message;
-            if (!messageText) return;
+        // CHAT MESSAGE
+        if (message.type === 'chat') {
+            const text = message.payload?.message;
+            if (!text) return;
 
-            const currentUserRoom = allSockets.find(
-                (s) => s.socket === socket
-            )?.room;
+            const sender = users.find((u) => u.id === userId);
+            if (!sender) return;
 
-            if (!currentUserRoom) return;
+            const outgoingMessage = JSON.stringify({
+                type: 'chat',
+                payload: {
+                    message: text,
+                    senderId: userId,
+                    timestamp: Date.now(),
+                },
+            });
 
-            allSockets.forEach((user) => {
-                if (user.room === currentUserRoom) {
-                    user.socket.send(messageText);
+            users.forEach((user) => {
+                if (
+                    user.room === sender.room &&
+                    user.id !== userId && // 🚫 no echo
+                    user.socket.readyState === WebSocket.OPEN
+                ) {
+                    user.socket.send(outgoingMessage);
                 }
             });
         }
     });
 
     socket.on('close', () => {
-        allSockets = allSockets.filter((s) => s.socket !== socket);
-        console.log('User disconnected');
+        users = users.filter((u) => u.id !== userId);
+        console.log(`User ${userId} disconnected`);
     });
 });
+
